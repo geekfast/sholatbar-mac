@@ -275,10 +275,19 @@ final class AppState: ObservableObject {
 
 import Combine
 
+// MARK: - App Delegate
+
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.setActivationPolicy(.accessory)
+    }
+}
+
 // MARK: - App Entry Point
 
 @main
 struct SholatBarApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var state = AppState()
 
     var body: some Scene {
@@ -348,7 +357,11 @@ struct PrayerMenuView: View {
             .padding(.vertical, 8)
         }
         .frame(width: 220)
-        .onAppear { NSApp.activate(ignoringOtherApps: true) }
+        .onAppear {
+            DispatchQueue.main.async {
+                NSApp.activate(ignoringOtherApps: true)
+            }
+        }
     }
 
     private var dateHeader: String {
