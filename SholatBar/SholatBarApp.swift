@@ -193,7 +193,6 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
 final class AppState: ObservableObject {
     @Published var prayers: [PrayerTime] = []
     @Published var now: Date = Date()
-    @Published var isTerminating = false
 
     private var timer: Timer?
     let locationManager = LocationManager()
@@ -201,13 +200,6 @@ final class AppState: ObservableObject {
     init() {
         loadPrayers()
         startTimer()
-
-        NotificationCenter.default.addObserver(
-            forName: NSApplication.willTerminateNotification,
-            object: nil, queue: .main
-        ) { [weak self] _ in
-            self?.isTerminating = true
-        }
 
         // Reload prayers when location updates
         locationManager.$location
@@ -219,7 +211,7 @@ final class AppState: ObservableObject {
         locationManager.requestLocation()
     }
 
-    private var cancellables = Set<AnyCancellable>()
+    var cancellables = Set<AnyCancellable>()
 
     private func startTimer() {
         // Fire every 30 seconds to keep the menu bar label fresh
@@ -284,17 +276,83 @@ final class AppState: ObservableObject {
 
 import Combine
 
+// MARK: - Status Bar Controller
+
+final class StatusBarController: NSObject, NSPopoverDelegate {
+    private var statusItem: NSStatusItem!
+    private var popover: NSPopover!
+    private let state: AppState
+
+    init(state: AppState) {
+        self.state = state
+        super.init()
+
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        updateTitle()
+
+        if let button = statusItem.button {
+            button.target = self
+            button.action = #selector(togglePopover)
+        }
+
+        popover = NSPopover()
+        popover.contentSize = NSSize(width: 220, height: 300)
+        popover.behavior = .transient
+        popover.delegate = self
+        popover.contentViewController = NSHostingController(
+            rootView: PrayerMenuView().environmentObject(state)
+        )
+
+        // Update menu bar title every time state changes
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification,
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.teardown()
+        }
+    }
+
+    func updateTitle() {
+        statusItem.button?.title = PrayerSchedule.menuBarTitle(next: state.nextPrayer)
+    }
+
+    @objc func togglePopover() {
+        if popover.isShown {
+            popover.performClose(nil)
+        } else {
+            guard let button = statusItem.button else { return }
+            NSApp.activate(ignoringOtherApps: true)
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        }
+    }
+
+    func teardown() {
+        popover.close()
+        NSStatusBar.system.removeStatusItem(statusItem)
+    }
+}
+
 // MARK: - App Delegate
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    var onTerminate: (() -> Void)?
+    private var state: AppState?
+    private var statusBarController: StatusBarController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        let appState = AppState()
+        state = appState
+        statusBarController = StatusBarController(state: appState)
+
+        // Keep menu bar title in sync with clock ticks
+        appState.$now
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.statusBarController?.updateTitle() }
+            .store(in: &appState.cancellables)
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        onTerminate?()
+        statusBarController?.teardown()
     }
 }
 
@@ -303,16 +361,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 @main
 struct SholatBarApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    @StateObject private var state = AppState()
 
     var body: some Scene {
-        MenuBarExtra(isInserted: Binding(get: { !state.isTerminating }, set: { _ in })) {
-            PrayerMenuView()
-                .environmentObject(state)
-        } label: {
-            Text(PrayerSchedule.menuBarTitle(next: state.nextPrayer))
-        }
-        .menuBarExtraStyle(.window)
+        Settings { EmptyView() }
     }
 }
 
@@ -389,11 +440,6 @@ struct PrayerMenuView: View {
             }
         }
         .frame(width: 220)
-        .onAppear {
-            DispatchQueue.main.async {
-                NSApp.activate(ignoringOtherApps: true)
-            }
-        }
     }
 
     private var dateHeader: String {
