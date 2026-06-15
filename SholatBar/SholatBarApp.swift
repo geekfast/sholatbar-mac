@@ -348,6 +348,7 @@ struct PrayerMenuView: View {
             .padding(.vertical, 8)
         }
         .frame(width: 220)
+        .onAppear { NSApp.activate(ignoringOtherApps: true) }
     }
 
     private var dateHeader: String {
