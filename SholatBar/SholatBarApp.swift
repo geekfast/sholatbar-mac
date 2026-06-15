@@ -1,5 +1,6 @@
 import AppKit
 import CoreLocation
+import ServiceManagement
 import SwiftUI
 
 // MARK: - Prayer Time Model
@@ -347,14 +348,31 @@ struct PrayerMenuView: View {
             Divider()
                 .padding(.horizontal, 14)
 
-            // Quit button
-            Button(action: { NSApplication.shared.terminate(nil) }) {
-                Text("Quit")
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            // Footer buttons
+            VStack(spacing: 0) {
+                Button(action: toggleLaunchAtLogin) {
+                    HStack {
+                        Text("Buka saat Login")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        if launchAtLoginEnabled {
+                            Image(systemName: "checkmark")
+                                .font(.caption)
+                                .foregroundStyle(Color.accentColor)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+
+                Button(action: { NSApplication.shared.terminate(nil) }) {
+                    Text("Quit")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
             }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
         }
         .frame(width: 220)
         .onAppear {
@@ -369,6 +387,22 @@ struct PrayerMenuView: View {
         f.dateFormat = "EEEE, d MMMM yyyy"
         f.locale = Locale(identifier: "id_ID")
         return f.string(from: state.now)
+    }
+
+    private var launchAtLoginEnabled: Bool {
+        SMAppService.mainApp.status == .enabled
+    }
+
+    private func toggleLaunchAtLogin() {
+        do {
+            if launchAtLoginEnabled {
+                try SMAppService.mainApp.unregister()
+            } else {
+                try SMAppService.mainApp.register()
+            }
+        } catch {
+            // silently ignore — user can manage via System Settings > Login Items
+        }
     }
 }
 
