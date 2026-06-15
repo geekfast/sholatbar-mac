@@ -193,6 +193,7 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
 final class AppState: ObservableObject {
     @Published var prayers: [PrayerTime] = []
     @Published var now: Date = Date()
+    @Published var isTerminating = false
 
     private var timer: Timer?
     let locationManager = LocationManager()
@@ -200,6 +201,13 @@ final class AppState: ObservableObject {
     init() {
         loadPrayers()
         startTimer()
+
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification,
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.isTerminating = true
+        }
 
         // Reload prayers when location updates
         locationManager.$location
@@ -279,8 +287,14 @@ import Combine
 // MARK: - App Delegate
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    var onTerminate: (() -> Void)?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        onTerminate?()
     }
 }
 
@@ -292,7 +306,7 @@ struct SholatBarApp: App {
     @StateObject private var state = AppState()
 
     var body: some Scene {
-        MenuBarExtra {
+        MenuBarExtra(isInserted: Binding(get: { !state.isTerminating }, set: { _ in })) {
             PrayerMenuView()
                 .environmentObject(state)
         } label: {
