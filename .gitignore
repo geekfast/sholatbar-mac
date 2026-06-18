@@ -1,2 +1,4 @@
 build/
-dist/
+dist/*
+!dist/SholatBar-mac.zip
+!dist/SholatBar-mac.dmg

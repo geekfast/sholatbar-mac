@@ -23,6 +23,22 @@ The menu bar title updates automatically and stays visible while you work:
 
 Clicking the menu bar item opens a small popover with today's full schedule and highlights the next prayer.
 
+## Download
+
+Grab the ready-to-use app from:
+
+[Download SholatBar for macOS](dist/SholatBar-mac.zip)
+
+Unzip it, move `SholatBar.app` to your `Applications` folder, then open it from there.
+
+To package the app as a macOS DMG, run:
+
+```bash
+./scripts/create-dmg.sh
+```
+
+The DMG will be created at `dist/SholatBar-mac.dmg`.
+
 ## Requirements
 
 - macOS
