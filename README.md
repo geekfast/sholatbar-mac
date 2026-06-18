@@ -17,11 +17,9 @@ It sits quietly in the menu bar, shows the upcoming sholat time, and opens a com
 
 ## Preview
 
-The menu bar title updates automatically:
+The menu bar title updates automatically and stays visible while you work:
 
-```text
-SholatBar -> Maghrib 17:52
-```
+![SholatBar menu bar preview](docs/menubar-preview.png)
 
 Clicking the menu bar item opens a small popover with today's full schedule and highlights the next prayer.
 
